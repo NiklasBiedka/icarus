@@ -42,7 +42,10 @@ import 'package:icarus/const/maps.dart';
 import 'package:icarus/const/placed_classes.dart';
 import 'package:icarus/const/bounding_box.dart';
 import 'package:icarus/providers/utility_provider.dart';
+import 'package:icarus/providers/view_cone_geometry_provider.dart';
+import 'package:icarus/page_transition/agent_path.dart';
 import 'package:icarus/services/archive_manifest.dart';
+import 'package:icarus/view_cone/vision_geometry.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
@@ -752,6 +755,7 @@ class StrategyProvider extends Notifier<StrategyState> {
             position: shift(utility.position),
             id: utility.id,
             angle: utility.angle,
+            visionElevation: utility.visionElevation,
             customDiameter: utility.customDiameter,
             customWidth: utility.customWidth,
             customLength: utility.customLength,
@@ -1056,27 +1060,77 @@ class StrategyProvider extends Notifier<StrategyState> {
 
     // Load target page (hydrates providers)
     await setActivePage(pageID);
-    final endSettings = ref.read(strategySettingsProvider);
-
     // After layout, snapshot next and start transition
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final preliminaryNext = _snapshotAllPlaced();
+      final preliminaryEntries = _diffToTransitions(prev, preliminaryNext);
+      if (preliminaryEntries.isEmpty) {
+        transitionNotifier.complete();
+        return;
+      }
+
+      final needsAgentRouting = preliminaryEntries.any(
+        (entry) =>
+            entry.kind == TransitionKind.move &&
+            entry.visualWidget is PlacedAgentNode,
+      );
+
+      // Page-transition routes use the same collision geometry as view cones.
+      // Only resolve it when a moved agent actually needs a route; transitions
+      // containing abilities, drawings, or unchanged agents can start without
+      // paying the map geometry initialization cost.
+      VisionGeometryMap? transitionGeometry;
+      if (needsAgentRouting) {
+        try {
+          transitionGeometry = await ref.read(
+            viewConeGeometryProvider(ref.read(mapProvider).currentMap).future,
+          );
+        } on Object {
+          // Geometry is an enhancement. Keep page navigation functional and
+          // let the overlay retain its direct-path fallback if loading fails.
+        }
+      }
+
+      // A geometry load may yield long enough for another navigation request
+      // to supersede this one. Do not start a stale transition afterward.
+      final currentTransition = ref.read(transitionProvider);
+      if (currentTransition.phase != PageTransitionPhase.preparing ||
+          currentTransition.sourcePageId != sourcePageId ||
+          currentTransition.targetPageId != targetPageId) {
+        return;
+      }
+
+      // The preliminary entries only decide whether geometry is needed. Build
+      // a distinct final snapshot after the possible await so stale entries
+      // can never reach start(), even when page IDs did not change.
       final next = _snapshotAllPlaced();
       final entries = _diffToTransitions(prev, next);
-      if (entries.isNotEmpty) {
-        transitionNotifier.start(
-          entries,
-          duration: duration,
-          direction: resolvedDirection,
-          startAgentSize: startSettings.agentSize,
-          endAgentSize: endSettings.agentSize,
-          startAbilitySize: startSettings.abilitySize,
-          endAbilitySize: endSettings.abilitySize,
-          sourcePageId: sourcePageId,
-          targetPageId: targetPageId,
-        );
-      } else {
+      if (entries.isEmpty) {
         transitionNotifier.complete();
+        return;
       }
+
+      final endSettings = ref.read(strategySettingsProvider);
+      final agentPaths = AgentTransitionPathPlanner.plan(
+        entries: entries,
+        geometry: transitionGeometry,
+        isAttack: ref.read(mapProvider).isAttack,
+        startAgentSize: startSettings.agentSize,
+        endAgentSize: endSettings.agentSize,
+        coordinateSystem: CoordinateSystem.instance,
+      );
+      transitionNotifier.start(
+        entries,
+        duration: duration,
+        direction: resolvedDirection,
+        startAgentSize: startSettings.agentSize,
+        endAgentSize: endSettings.agentSize,
+        startAbilitySize: startSettings.abilitySize,
+        endAbilitySize: endSettings.abilitySize,
+        sourcePageId: sourcePageId,
+        targetPageId: targetPageId,
+        agentPaths: agentPaths,
+      );
     });
   }
 

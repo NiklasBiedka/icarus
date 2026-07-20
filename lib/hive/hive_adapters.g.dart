@@ -730,6 +730,7 @@ class PlacedUtilityAdapter extends TypeAdapter<PlacedUtility> {
       id: fields[3] as String,
       isAlly: fields[14] == null ? true : fields[14] as bool,
       angle: fields[6] == null ? 0.0 : (fields[6] as num).toDouble(),
+      visionElevation: (fields[15] as num?)?.toDouble(),
       customDiameter: (fields[8] as num?)?.toDouble(),
       customWidth: (fields[9] as num?)?.toDouble(),
       customLength: (fields[10] as num?)?.toDouble(),
@@ -744,7 +745,7 @@ class PlacedUtilityAdapter extends TypeAdapter<PlacedUtility> {
   @override
   void write(BinaryWriter writer, PlacedUtility obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.type)
       ..writeByte(1)
@@ -770,7 +771,9 @@ class PlacedUtilityAdapter extends TypeAdapter<PlacedUtility> {
       ..writeByte(12)
       ..write(obj.customOpacityPercent)
       ..writeByte(14)
-      ..write(obj.isAlly);
+      ..write(obj.isAlly)
+      ..writeByte(15)
+      ..write(obj.visionElevation);
   }
 
   @override
@@ -1312,13 +1315,22 @@ class AppPreferencesAdapter extends TypeAdapter<AppPreferences> {
       pagesBarWidth: fields[7] == null ? 224.0 : (fields[7] as num).toDouble(),
       customColorValues: (fields[3] as List?)?.cast<int>(),
       customShortcutBindings: (fields[8] as Map?)?.cast<String, String>(),
+      librarySortByName:
+          fields[12] == null ? 'dateCreated' : fields[12] as String,
+      librarySortOrderName:
+          fields[13] == null ? 'ascending' : fields[13] as String,
+      drawingColorValue:
+          fields[14] == null ? 0xFFFFFFFF : (fields[14] as num).toInt(),
+      drawingThickness: fields[15] == null
+          ? Settings.defaultStrokeThickness
+          : (fields[15] as num).toDouble(),
     );
   }
 
   @override
   void write(BinaryWriter writer, AppPreferences obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.defaultThemeProfileIdForNewStrategies)
       ..writeByte(1)
@@ -1342,7 +1354,15 @@ class AppPreferencesAdapter extends TypeAdapter<AppPreferences> {
       ..writeByte(10)
       ..write(obj.showUltOrbs)
       ..writeByte(11)
-      ..write(obj.showRegionNames);
+      ..write(obj.showRegionNames)
+      ..writeByte(12)
+      ..write(obj.librarySortByName)
+      ..writeByte(13)
+      ..write(obj.librarySortOrderName)
+      ..writeByte(14)
+      ..write(obj.drawingColorValue)
+      ..writeByte(15)
+      ..write(obj.drawingThickness);
   }
 
   @override
@@ -1373,6 +1393,7 @@ class PlacedViewConeAgentAdapter extends TypeAdapter<PlacedViewConeAgent> {
       presetType: fields[0] as UtilityType,
       rotation: fields[1] == null ? 0 : (fields[1] as num).toDouble(),
       length: fields[2] == null ? 0 : (fields[2] as num).toDouble(),
+      visionElevation: (fields[9] as num?)?.toDouble(),
       isAlly: fields[4] == null ? true : fields[4] as bool,
       state: fields[5] == null ? AgentState.none : fields[5] as AgentState,
     )..isDeleted = fields[7] as bool;
@@ -1381,7 +1402,7 @@ class PlacedViewConeAgentAdapter extends TypeAdapter<PlacedViewConeAgent> {
   @override
   void write(BinaryWriter writer, PlacedViewConeAgent obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.presetType)
       ..writeByte(1)
@@ -1399,7 +1420,9 @@ class PlacedViewConeAgentAdapter extends TypeAdapter<PlacedViewConeAgent> {
       ..writeByte(7)
       ..write(obj.isDeleted)
       ..writeByte(8)
-      ..write(obj.position);
+      ..write(obj.position)
+      ..writeByte(9)
+      ..write(obj.visionElevation);
   }
 
   @override

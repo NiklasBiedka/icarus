@@ -33,7 +33,7 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:toastification/toastification.dart';
 import 'package:window_manager/window_manager.dart';
 
-late CustomMouseCursor staticDrawingCursor;
+CustomMouseCursor? staticDrawingCursor;
 WebViewEnvironment? webViewEnvironment;
 bool isWebViewInitialized = false;
 Future<void> main(List<String> args) async {
@@ -92,6 +92,9 @@ Future<void> main(List<String> args) async {
       if (!kIsWeb) {
         await windowManager.ensureInitialized();
         WindowOptions windowOptions = const WindowOptions(
+          size: Size(1600, 900),
+          minimumSize: Size(1280, 720),
+          center: true,
           title:
               "Icarus: Valorant Strategies & Line ups ${Settings.versionName}",
         );
